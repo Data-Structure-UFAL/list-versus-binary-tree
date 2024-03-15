@@ -40,6 +40,7 @@ int endInsertLinkedList(list_node** head, int value){
     }
 
     if(isLinkedListEmpty(*head)){
+        //comparisons++;
         *head = newNode;
     }else{
         list_node *aux = *head;
@@ -70,7 +71,6 @@ int sortedInsertLinkedList(list_node** head, int value){
         comparisons++;
         newNode->next = *head;
         *head = newNode;
-
     }else{
         list_node *aux = *head;
 
@@ -81,32 +81,66 @@ int sortedInsertLinkedList(list_node** head, int value){
 
         newNode->next = aux->next;
         aux->next = newNode;
-
     }
 
     return comparisons;
 }
 
-int insertBinarySearchTree(tree_node** root, int value, int comparisons){
+int insertBinarySearchTree(tree_node** root, int value) {
+    int comparisons = 0;
 
-  if (*root == NULL) {
-    *root = (tree_node*)malloc(sizeof(tree_node));
-    (*root)->data = value;
-    (*root)->left = NULL;
-    (*root)->right = NULL;
+    if (*root == NULL) {
+        *root = (tree_node*)malloc(sizeof(tree_node));
+        (*root)->data = value;
+        (*root)->left = NULL;
+        (*root)->right = NULL;
+        return comparisons;
+    }
+
+    comparisons++;
+
+    if (value < (*root)->data) {
+        comparisons += insertBinarySearchTree(&((*root)->left), value);
+    } else if (value > (*root)->data) {
+        comparisons += insertBinarySearchTree(&((*root)->right), value);
+    } else {
+        return comparisons;
+    }
+
     return comparisons;
-  }
-
-  comparisons++;
-
-  if (value < (*root)->data) {
-    insertBinarySearchTree(&((*root)->left), value, comparisons);
-  } else if (value > (*root)->data) {
-    insertBinarySearchTree(&((*root)->right), value, comparisons);
-  } else {
-    return comparisons;
-  }
 }
+
+int searchLinkedList(list_node*head, int data){
+    int comparisons = 0;
+
+    while (head != NULL) {
+        comparisons++;
+        if (head->data == data) {
+            comparisons++;
+        }
+        head = head->next;
+    }
+
+    return comparisons;
+}
+
+
+int searchBinarySearchTree(tree_node* bt, int data) {
+    int comparisons = 0;
+
+    while (bt != NULL) {
+        comparisons++;
+        if (bt->data == data) {
+            return comparisons; 
+        } else if (data < bt->data) {
+            bt = bt->left; 
+        } else {
+            bt = bt->right; 
+        }
+    }
+    return comparisons;
+}
+
 
 void freeLinkedList(list_node* head) {
     list_node* current = head;
@@ -130,6 +164,14 @@ void printTree(tree_node* root) {
         printf("%d ", root->data);
         printTree(root->right);
     }
+}
+
+void printLinkedList(list_node* root){
+    while (root != NULL){
+        printf("%d -> ");
+        root = root->next;
+    }
+    printf("\n");
 }
 
 void red(){
@@ -156,9 +198,8 @@ void green(){
     printf("\033[0;32m");
 }
 
-void plotGraph(int* x, int* y1, int* y2, int n, char* xLabel, char* yLabel, char* title, int highestComparison) {
-
-    FILE* fp = fopen("data.txt", "w");
+void plotGraph(int* x, int* y1, int* y2, int n, char* xLabel, char* yLabel, char* title, int highestComparison, char* fileName) {
+    FILE* fp = fopen(fileName, "w");
     if (fp == NULL) {
         printf("Error: Unable to create data file.\n");
         return;
@@ -170,34 +211,38 @@ void plotGraph(int* x, int* y1, int* y2, int n, char* xLabel, char* yLabel, char
     fclose(fp);
 
     char command[100];
-    sprintf(command, "octave --no-gui --eval 'data = load(\"data.txt\"); plot(data(:,1), data(:,2), \"r\", data(:,1), data(:,3), \"b\"); xlabel(\"%s\"); ylabel(\"%s\"); title(\"%s\"); ylim([0, %d]); pause;'", xLabel, yLabel, title, highestComparison*2);
+    sprintf(command, "octave --no-gui --eval 'data = load(\"%s\"); plot(data(:,1), data(:,2), \"r\", data(:,1), data(:,3), \"b\"); xlabel(\"%s\"); ylabel(\"%s\"); title(\"%s\"); xlim([0, %d]); ylim([0, %d]); pause;'", fileName, xLabel, yLabel, title, n, highestComparison*2);
     system(command);
 }
 
+int makeInsertions(list_node**linkedList, tree_node**binarySearchTree, int insertions, int(*linkedListFunction)(list_node**, int), int*x, int*y_linked_list, int*y_binary_search_tree, int isSearch){
 
-void beginInsertionTest(list_node*linkedList, tree_node*binarySearchTree, int insertions){
+    int highestComparision = 0, i;
 
-    int* x = malloc(insertions * sizeof(int));
-    int* y_linked_list = malloc(insertions * sizeof(int));
-    int* y_binary_search_tree = malloc(insertions * sizeof(int));
-
-    if (x == NULL || y_linked_list == NULL || y_binary_search_tree == NULL) {
-        printf("Error: Memory allocation failed.\n");
-        return;
-    }
-
-    int highestComparision = 0;
-
-    int i;
     for (i = 0; i < insertions; i++) {
         int data = rand() % 100;
+        //printf("dangerous %d\n", data);
 
-        y_linked_list[i] = beginInsertLinkedList(&linkedList, data);
-        y_binary_search_tree[i] = insertBinarySearchTree(&binarySearchTree, data, 0);
+        int comparisonsLL, comparisonsBST;
+        //printf("eh de search? %d\n", isSearch);
         x[i] = i + 1;
 
-        int comparisonsLL = y_linked_list[i];
-        int comparisonsBST = y_binary_search_tree[i];
+        if(isSearch){
+
+            linkedListFunction(linkedList, data);
+            insertBinarySearchTree(binarySearchTree, data);
+
+            int random = rand() % 100;
+            comparisonsLL = searchLinkedList(*linkedList, random);
+            comparisonsBST = searchBinarySearchTree(*binarySearchTree, random);
+        }else{
+
+            comparisonsLL = linkedListFunction(linkedList, data);
+            comparisonsBST = insertBinarySearchTree(binarySearchTree, data);
+        }
+
+        y_linked_list[i] = comparisonsLL;
+        y_binary_search_tree[i] = comparisonsBST;
 
         if(comparisonsLL > highestComparision || comparisonsBST > highestComparision){
             if(comparisonsBST > comparisonsLL){
@@ -209,11 +254,27 @@ void beginInsertionTest(list_node*linkedList, tree_node*binarySearchTree, int in
 
     }
 
-    plotGraph(x, y_linked_list, y_binary_search_tree, insertions, "Number of Insertions", "Comparisons", "Comparison of Linked List and Binary Search Tree", highestComparision);
+    return highestComparision;
+}
+
+void searchTest(list_node*linkedList, tree_node*binarySearchTree, int insertions){
+
+    int* xInsertions = malloc(insertions * sizeof(int));
+    int* yLLInsertions = malloc(insertions * sizeof(int));
+    int* yBSTInsertions = malloc(insertions * sizeof(int));
+
+    if (xInsertions == NULL || yLLInsertions == NULL || yBSTInsertions == NULL) {
+            printf("Error: Memory allocation failed.\n");
+            return;
+    }
+
+    int highestComparision = makeInsertions(&linkedList, &binarySearchTree, insertions, beginInsertLinkedList, xInsertions, yLLInsertions, yBSTInsertions, 1);
+
+    plotGraph(xInsertions, yLLInsertions, yBSTInsertions, insertions, "Número de Elementos Inseridos", "Número de Comparações", "Plotagem de Busca - Vermelho = Lista Encadeada, Azul = Árvore de Busca Binária", highestComparision, "search.txt");
 
 }
 
-void endInsertionTest(list_node*linkedList, tree_node*binarySearchTree, int insertions){
+void insertTest(list_node**linkedList, tree_node**binarySearchTree, int insertions, int(*linkedListFunction)(list_node**, int), int(*binarySearchTreeFunction)(tree_node**, int)){
 
     int* x = malloc(insertions * sizeof(int));
     int* y_linked_list = malloc(insertions * sizeof(int));
@@ -224,13 +285,17 @@ void endInsertionTest(list_node*linkedList, tree_node*binarySearchTree, int inse
         return;
     }
 
-    int comparisons_linked_list = 0;
-    int comparisons_binary_search_tree = 0;
-    int highestComparision = 0;
+    int highestComparision = makeInsertions(linkedList, binarySearchTree, insertions, linkedListFunction, x, y_linked_list, y_binary_search_tree, 0);
+
+    //printLinkedList(*linkedList);
+    //printTree(*binarySearchTree);
+
+    plotGraph(x, y_linked_list, y_binary_search_tree, insertions, "Número de Inserções", "Número de Comparações", "Plotagem de Inserção Vermelho = Lista Encadeada, Azul = Árvore de Busca Binária", highestComparision, "insertion.txt");
 
 }
 
-void showSubMenu(list_node*linkedList, tree_node*binarySearchTree){
+
+void showInsertionSubMenu(list_node**linkedList, tree_node**binarySearchTree){
     printf("\n- Para a Lista Encadeada, a inserção será:\n");
     printf("\t1. No início\n");
     printf("\t2. No final\n");
@@ -245,14 +310,15 @@ void showSubMenu(list_node*linkedList, tree_node*binarySearchTree){
     switch (subMenuOption){
 
         case 1:
-            beginInsertionTest(linkedList, binarySearchTree, insertions);
+            insertTest(linkedList, binarySearchTree, insertions, beginInsertLinkedList, insertBinarySearchTree);
             break;
         case 2:
-
+            
+            insertTest(linkedList, binarySearchTree, insertions, endInsertLinkedList, insertBinarySearchTree);
             break;
 
         case 3:
-        
+            insertTest(linkedList, binarySearchTree, insertions, sortedInsertLinkedList, insertBinarySearchTree);
             break;
 
         default:
@@ -267,8 +333,9 @@ void showMenu(){
 }
 
 int main(int argc, char const *argv[]){
-    
+
     printf("\n");
+    //yellow();
     printf("X1 DE ");
     yellow();
     printf("ESTRUTURAS DE DADOS");
@@ -294,10 +361,17 @@ int main(int argc, char const *argv[]){
 
     switch (menuOption){
     case 1:
-        showSubMenu(linkedList, binarySearchTree);
+        showInsertionSubMenu(&linkedList, &binarySearchTree);
 
         break;
     case 2:
+
+        int insertions = 0;
+
+        printf("Insira quantas inserções deseja fazer para que um número sorteado seja buscado: \n");
+        scanf("%d", &insertions);
+
+        searchTest(linkedList, binarySearchTree, insertions);
 
         break;
     default:
